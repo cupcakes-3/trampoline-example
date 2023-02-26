@@ -11,6 +11,9 @@
   "icons": {
     "128": "icon-128.png"
   },
+  "externally_connectable": {
+    "matches": ["http://localhost:3000/*"]
+  },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "<all_urls>"],

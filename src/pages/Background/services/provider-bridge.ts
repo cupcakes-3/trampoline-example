@@ -39,75 +39,10 @@ import {
   sendTransactionsRequest,
 } from '../redux-slices/transactions';
 
-export type EthersTransactionRequest = {
-  to: string;
-  from?: string;
-  nonce?: BigNumberish;
-
-  gasLimit?: BigNumberish;
-  gasPrice?: BigNumberish;
-
-  data?: BytesLike;
-  value?: BigNumberish;
-  chainId?: number;
-
-  type?: number;
-  accessList?: AccessListish;
-
-  maxPriorityFeePerGas?: BigNumberish;
-  maxFeePerGas?: BigNumberish;
-
-  customData?: Record<string, any>;
-};
-
 type JsonRpcTransactionRequest = Omit<EthersTransactionRequest, 'gasLimit'> & {
   gas?: string;
   input?: string;
   annotation?: string;
-};
-
-export type PermissionRequest = {
-  key: string;
-  origin: string;
-  faviconUrl: string;
-  chainID: string;
-  title: string;
-  state: 'request' | 'allow' | 'deny';
-  accountAddress: string;
-};
-
-// https://eips.ethereum.org/EIPS/eip-3326
-export type SwitchEthereumChainParameter = {
-  chainId: string;
-};
-
-// https://eips.ethereum.org/EIPS/eip-3085
-export type AddEthereumChainParameter = {
-  chainId: string;
-  blockExplorerUrls?: string[];
-  chainName?: string;
-  iconUrls?: string[];
-  nativeCurrency?: {
-    name: string;
-    symbol: string;
-    decimals: number;
-  };
-  rpcUrls?: string[];
-};
-
-export type PortRequestEvent = {
-  id: string;
-  request: RPCRequest;
-};
-
-export type PermissionMap = {
-  evm: {
-    [chainID: string]: {
-      [address: string]: {
-        [origin: string]: PermissionRequest;
-      };
-    };
-  };
 };
 
 type Events = ServiceLifecycleEvents & {
@@ -541,7 +476,7 @@ export default class ProviderBridgeService extends BaseService<Events> {
             ...(params[0] as JsonRpcTransactionRequest),
           },
           origin
-        )
+        );
       //   case 'eth_signTransaction':
       //     return this.signTransaction(
       //       params[0] as JsonRpcTransactionRequest,

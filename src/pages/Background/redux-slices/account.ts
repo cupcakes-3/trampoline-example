@@ -182,6 +182,7 @@ export const callAccountApiThunk = createBackgroundAsyncThunk(
       functionName,
       args
     );
+    console.log('did we get the result?', result);
 
     dispatch(accountSlice.actions.setAccountApiCallResult(result));
     dispatch(accountSlice.actions.setAccountApiCallResultState('set'));

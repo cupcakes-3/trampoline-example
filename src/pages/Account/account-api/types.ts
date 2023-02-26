@@ -15,7 +15,7 @@ export abstract class AccountApiType extends BaseAccountAPI {
     context?: any
   ) => Promise<string>;
 
-  abstract createUnsignedUserOp(
+  abstract createUnsignedUserOpWithContext(
     info: TransactionDetailsForUserOp,
     context?: any
   ): Promise<UserOperationStruct>;

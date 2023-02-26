@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import React, { useEffect } from 'react';
 import { useAccount, useConnect, useSignMessage } from 'wagmi';
-import { EthersTransactionRequest } from '../../../Background/services/provider-bridge';
+import { EthersTransactionRequest } from '../../../Background/services/types';
 import useAccountApi from '../../useAccountApi';
 
 const Transaction = ({
@@ -43,10 +43,10 @@ const Transaction = ({
     if (!isConnected) {
       connect({ connector: connectors[0] });
     } else {
-      callAccountApi('getUserOpHashToSign');
+      callAccountApi('getUserOpHashToSign', [transaction]);
       //   signMessage({ message: 'Ye karke dikhao' });
     }
-  }, [isConnected, connect, connectors, callAccountApi]);
+  }, [isConnected, connect, connectors, callAccountApi, transaction]);
 
   return !isConnected ? (
     <>

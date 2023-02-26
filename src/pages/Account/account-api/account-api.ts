@@ -11,8 +11,20 @@ import { arrayify, hexConcat } from 'ethers/lib/utils';
 import { AccountApiParamsType, AccountApiType } from './types';
 import { MessageSigningRequest } from '../../Background/redux-slices/signing';
 import { TransactionDetailsForUserOp } from '@account-abstraction/sdk/dist/src/TransactionDetailsForUserOp';
+import { EthersTransactionRequest } from '../../Background/services/types';
 
 const FACTORY_ADDRESS = '0x6C583EE7f3a80cB53dDc4789B0Af1aaFf90e55F3';
+
+export type Registration = {
+  username: string;
+  credential: {
+    id: string;
+    publicKey: string;
+    algorithm: string;
+  };
+  authenticatorData: string;
+  clientData: string;
+};
 
 /**
  * An implementation of the BaseAccountAPI using the SimpleAccount contract.
@@ -24,8 +36,7 @@ const FACTORY_ADDRESS = '0x6C583EE7f3a80cB53dDc4789B0Af1aaFf90e55F3';
 class BLSAccountAPI extends AccountApiType {
   name: string;
   factoryAddress?: string;
-  ownerOne: Wallet;
-  ownerTwo: string;
+  registration: Registration;
   index: number;
 
   /**
@@ -36,14 +47,27 @@ class BLSAccountAPI extends AccountApiType {
 
   factory?: SimpleAccountFactory;
 
-  constructor(params: AccountApiParamsType<{ address: string }>) {
+  constructor(
+    params: AccountApiParamsType<{
+      registration: {
+        username: string;
+        credential: {
+          id: string;
+          publicKey: string;
+          algorithm: string;
+        };
+        authenticatorData: string;
+        clientData: string;
+      };
+    }>
+  ) {
     super(params);
     this.factoryAddress = FACTORY_ADDRESS;
 
-    this.ownerOne = params.deserializeState?.privateKey
-      ? new ethers.Wallet(params.deserializeState?.privateKey)
-      : ethers.Wallet.createRandom();
-    this.ownerTwo = params.context?.address || '';
+    if (!params.context?.registration) throw new Error('Need registration');
+
+    this.registration = params.context?.registration;
+
     this.index = 0;
     this.name = 'SimpleAccountAPI';
   }
@@ -51,7 +75,6 @@ class BLSAccountAPI extends AccountApiType {
   serialize = async (): Promise<object> => {
     return {
       privateKey: this.ownerOne.privateKey,
-      ownerTwo: this.ownerTwo,
     };
   };
 
@@ -89,10 +112,20 @@ class BLSAccountAPI extends AccountApiType {
     ]);
   }
 
-   getUserOpHashToSign = async () => {
-
-    return 5
-   }
+  getUserOpHashToSign = async (transaction: EthersTransactionRequest) => {
+    const userOp = await this.createUnsignedUserOpWithContext({
+      target: transaction.to,
+      data: transaction.data
+        ? ethers.utils.hexConcat([transaction.data])
+        : '0x',
+      value: transaction.value,
+      gasLimit: transaction.gasLimit,
+      maxFeePerGas: transaction.maxFeePerGas,
+      maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+    });
+    console.log(userOp, 'userOp------');
+    return this.getUserOpHash(userOp);
+  };
 
   async getNonce(): Promise<BigNumber> {
     if (await this.checkAccountPhantom()) {
@@ -132,11 +165,11 @@ class BLSAccountAPI extends AccountApiType {
     return this.ownerOne.signMessage(request?.rawSigningData || '');
   };
 
-  async createUnsignedUserOp(
+  async createUnsignedUserOpWithContext(
     info: TransactionDetailsForUserOp,
-    context: any
+    context?: any
   ): Promise<UserOperationStruct> {
-    return super.createSignedUserOp(info);
+    return this.createUnsignedUserOp(info);
   }
 
   async createUnsignedUserOpForTransactions(

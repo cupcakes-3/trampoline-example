@@ -18,52 +18,49 @@ const Onboarding: OnboardingComponent = ({
   accountName,
   onOnboardingComplete,
 }: OnboardingComponentProps) => {
-  const { connect, connectors, error, isLoading, pendingConnector } =
-    useConnect();
+  useEffect(() => {
+    const listenToMessageEvent = (registration: any, sender: any) => {
+      if (
+        sender.url.includes('http://localhost:3000/iframe.html#/create-new')
+      ) {
+        console.log(registration);
+        onOnboardingComplete({
+          registration,
+        });
+      }
+    };
 
-  const { address, isConnected } = useAccount();
+    window.addEventListener('message', listenToMessageEvent);
+
+    chrome.runtime.onMessageExternal.addListener(listenToMessageEvent);
+
+    return () =>
+      chrome.runtime.onMessageExternal.removeListener(listenToMessageEvent);
+  }, []);
 
   useEffect(() => {
-    if (isConnected) {
-      onOnboardingComplete({
-        address,
-      });
-    }
-  }, [isConnected, address, onOnboardingComplete]);
+    window.open(
+      `http://localhost:3000/iframe.html#/create-new/${chrome.runtime.id}/${accountName}/`
+    );
+  }, [accountName]);
 
   return (
     <>
       <CardContent>
         <Typography variant="h3" gutterBottom>
-          Add 2FA Device
+          Awaiting Fingerprint
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          All your transactions must be signed by your mobile wallet and this
-          chrome extension to prevent fraudulant transactions.
-          <br />
-        </Typography>
+        <CircularProgress
+          size={24}
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            marginTop: '-12px',
+            marginLeft: '-12px',
+          }}
+        />
       </CardContent>
-      <CardActions sx={{ pl: 4, pr: 4, width: '100%' }}>
-        <Stack spacing={2} sx={{ width: '100%' }}>
-          {connectors.map((connector) => (
-            <Button
-              size="large"
-              variant="contained"
-              disabled={!connector.ready}
-              key={connector.id}
-              onClick={() => connect({ connector })}
-            >
-              {connector.name}
-              {!connector.ready && ' (unsupported)'}
-              {isLoading &&
-                connector.id === pendingConnector?.id &&
-                ' (connecting)'}
-            </Button>
-          ))}
-
-          {error && <Typography>{error.message}</Typography>}
-        </Stack>
-      </CardActions>
     </>
   );
 };

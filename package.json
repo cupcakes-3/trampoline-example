@@ -41,6 +41,7 @@
     "redux-devtools": "^3.7.0",
     "redux-persist": "^6.0.0",
     "siwe": "^1.1.6",
+    "uuid": "^9.0.0",
     "wagmi": "^0.11.3",
     "webext-redux": "^2.1.9",
     "webextension-polyfill": "^0.10.0"

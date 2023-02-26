@@ -1,4 +1,7 @@
 import Emittery from 'emittery';
+import { BigNumberish, BytesLike } from 'ethers';
+import { AccessListish } from 'ethers/lib/utils.js';
+import { RPCRequest } from '../../Content/types';
 
 export interface ServiceLifecycleEvents {
   serviceStarted: void;
@@ -80,3 +83,68 @@ export interface Service<T extends ServiceLifecycleEvents> {
    */
   stopService(): Promise<void>;
 }
+
+export type EthersTransactionRequest = {
+  to: string;
+  from?: string;
+  nonce?: BigNumberish;
+
+  gasLimit?: BigNumberish;
+  gasPrice?: BigNumberish;
+
+  data?: BytesLike;
+  value?: BigNumberish;
+  chainId?: number;
+
+  type?: number;
+  accessList?: AccessListish;
+
+  maxPriorityFeePerGas?: BigNumberish;
+  maxFeePerGas?: BigNumberish;
+
+  customData?: Record<string, any>;
+};
+
+export type PermissionRequest = {
+  key: string;
+  origin: string;
+  faviconUrl: string;
+  chainID: string;
+  title: string;
+  state: 'request' | 'allow' | 'deny';
+  accountAddress: string;
+};
+
+// https://eips.ethereum.org/EIPS/eip-3326
+export type SwitchEthereumChainParameter = {
+  chainId: string;
+};
+
+// https://eips.ethereum.org/EIPS/eip-3085
+export type AddEthereumChainParameter = {
+  chainId: string;
+  blockExplorerUrls?: string[];
+  chainName?: string;
+  iconUrls?: string[];
+  nativeCurrency?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls?: string[];
+};
+
+export type PortRequestEvent = {
+  id: string;
+  request: RPCRequest;
+};
+
+export type PermissionMap = {
+  evm: {
+    [chainID: string]: {
+      [address: string]: {
+        [origin: string]: PermissionRequest;
+      };
+    };
+  };
+};
