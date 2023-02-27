@@ -1,6 +1,6 @@
 {
   "enablePasswordEncryption": false,
-  "showTransactionConfirmationScreen": true,
+  "showTransactionConfirmationScreen": false,
   "network": {
     "chainID": "5",
     "family": "EVM",

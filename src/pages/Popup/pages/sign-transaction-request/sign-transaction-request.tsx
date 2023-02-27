@@ -240,7 +240,10 @@ const SignTransactionRequest = () => {
       await backgroundDispatch(
         sendTransaction({ address: activeAccount, context })
       );
-    window.close();
+    const timer = setTimeout(() => {
+      window.close();
+    }, 1000);
+    return clearTimeout(timer);
   }, [activeAccount, backgroundDispatch, context]);
 
   const onComplete = useCallback(
@@ -284,6 +287,7 @@ const SignTransactionRequest = () => {
   return SignTransactionComponent &&
     sendTransactionRequest.transactionRequest ? (
     <SignTransactionComponent
+      onReject={onReject}
       transaction={sendTransactionRequest.transactionRequest}
       onComplete={onComplete}
     />
