@@ -16,6 +16,9 @@ contract BLSAccount is SimpleAccount {
     uint256[4] private ownerOne;
     uint256[4] private ownerTwo;
 
+    uint256 public constant N =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
     bytes32 public constant BLS_DOMAIN = keccak256('trampoline.blsaccount.com');
 
     // The constructor is used only for the "implementation" and only sets immutable values.
@@ -107,8 +110,8 @@ contract BLSAccount is SimpleAccount {
         blsPublicKeys[0] = ownerOne;
         blsPublicKeys[1] = ownerTwo;
 
-        messages[0] = _userOpToMessage();
-        messages[1] = _userOpToMessage();
+        // messages[0] = _userOpToMessage();
+        // messages[1] = _userOpToMessage();
 
         require(
             BLSOpen.verifyMultiple(blsSignature, blsPublicKeys, messages),

@@ -236,9 +236,12 @@ const SignTransactionRequest = () => {
   );
 
   const onSend = useCallback(async () => {
-    if (activeAccount) await backgroundDispatch(sendTransaction(activeAccount));
+    if (activeAccount)
+      await backgroundDispatch(
+        sendTransaction({ address: activeAccount, context })
+      );
     window.close();
-  }, [activeAccount, backgroundDispatch]);
+  }, [activeAccount, backgroundDispatch, context]);
 
   const onComplete = useCallback(
     async (modifiedTransaction: EthersTransactionRequest, context?: any) => {

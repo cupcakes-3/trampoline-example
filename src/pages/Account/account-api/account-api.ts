@@ -12,18 +12,20 @@ import { AccountApiParamsType, AccountApiType } from './types';
 import { MessageSigningRequest } from '../../Background/redux-slices/signing';
 import { TransactionDetailsForUserOp } from '@account-abstraction/sdk/dist/src/TransactionDetailsForUserOp';
 import { EthersTransactionRequest } from '../../Background/services/types';
+import {
+  WebauthnAccount,
+  WebauthnAccountFactory,
+  WebauthnAccountFactory__factory,
+  WebauthnAccount__factory,
+} from './typechain-types';
+import { TempleHinduSharp } from '@mui/icons-material';
 
-const FACTORY_ADDRESS = '0x6C583EE7f3a80cB53dDc4789B0Af1aaFf90e55F3';
+const FACTORY_ADDRESS = '0x52aeBE6d31478B24EdfC9ab1c1fFB9e23e37c744';
 
-export type Registration = {
-  username: string;
-  credential: {
-    id: string;
-    publicKey: string;
-    algorithm: string;
-  };
-  authenticatorData: string;
-  clientData: string;
+export type QValues = {
+  credentialId: string;
+  q0: string;
+  q1: string;
 };
 
 /**
@@ -36,37 +38,30 @@ export type Registration = {
 class BLSAccountAPI extends AccountApiType {
   name: string;
   factoryAddress?: string;
-  registration: Registration;
+  ec: string;
+  q_values: QValues;
   index: number;
 
   /**
    * our account contract.
    * should support the "execFromEntryPoint" and "nonce" methods
    */
-  accountContract?: SimpleAccount;
+  accountContract?: WebauthnAccount;
 
-  factory?: SimpleAccountFactory;
+  factory?: WebauthnAccountFactory;
 
   constructor(
     params: AccountApiParamsType<{
-      registration: {
-        username: string;
-        credential: {
-          id: string;
-          publicKey: string;
-          algorithm: string;
-        };
-        authenticatorData: string;
-        clientData: string;
-      };
+      q_values: QValues;
     }>
   ) {
     super(params);
     this.factoryAddress = FACTORY_ADDRESS;
 
-    if (!params.context?.registration) throw new Error('Need registration');
+    if (!params.context?.q_values) throw new Error('Need q_values');
 
-    this.registration = params.context?.registration;
+    this.ec = '0x16367BB04F0Bb6D4fc89d2aa31c32E0ddA609508';
+    this.q_values = params.context?.q_values;
 
     this.index = 0;
     this.name = 'SimpleAccountAPI';
@@ -74,13 +69,13 @@ class BLSAccountAPI extends AccountApiType {
 
   serialize = async (): Promise<object> => {
     return {
-      privateKey: this.ownerOne.privateKey,
+      q_values: this.q_values,
     };
   };
 
-  async _getAccountContract(): Promise<SimpleAccount> {
+  async _getAccountContract(): Promise<WebauthnAccount> {
     if (this.accountContract == null) {
-      this.accountContract = SimpleAccount__factory.connect(
+      this.accountContract = WebauthnAccount__factory.connect(
         await this.getAccountAddress(),
         this.provider
       );
@@ -95,7 +90,7 @@ class BLSAccountAPI extends AccountApiType {
   async getAccountInitCode(): Promise<string> {
     if (this.factory == null) {
       if (this.factoryAddress != null && this.factoryAddress !== '') {
-        this.factory = SimpleAccountFactory__factory.connect(
+        this.factory = WebauthnAccountFactory__factory.connect(
           this.factoryAddress,
           this.provider
         );
@@ -106,14 +101,15 @@ class BLSAccountAPI extends AccountApiType {
     return hexConcat([
       this.factory.address,
       this.factory.interface.encodeFunctionData('createAccount', [
-        await this.ownerOne.getAddress(),
+        this.ec,
+        [this.q_values.q0, this.q_values.q1],
         this.index,
       ]),
     ]);
   }
 
   getUserOpHashToSign = async (transaction: EthersTransactionRequest) => {
-    const userOp = await this.createUnsignedUserOpWithContext({
+    const userOp = await this.createUnsignedUserOp({
       target: transaction.to,
       data: transaction.data
         ? ethers.utils.hexConcat([transaction.data])
@@ -123,8 +119,16 @@ class BLSAccountAPI extends AccountApiType {
       maxFeePerGas: transaction.maxFeePerGas,
       maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
     });
-    console.log(userOp, 'userOp------');
     return this.getUserOpHash(userOp);
+  };
+
+  getUserOpHashToSignAndCredentialId = async (
+    transaction: EthersTransactionRequest
+  ) => {
+    return {
+      credentialId: this.q_values.credentialId,
+      userOpHash: await this.getUserOpHashToSign(transaction),
+    };
   };
 
   async getNonce(): Promise<BigNumber> {
@@ -155,22 +159,29 @@ class BLSAccountAPI extends AccountApiType {
   }
 
   async signUserOpHash(userOpHash: string): Promise<string> {
-    return await this.ownerOne.signMessage(arrayify(userOpHash));
+    // return await this.ownerOne.signMessage(arrayify(userOpHash));
+    return '';
+  }
+
+  async signUserOpWithContext(
+    userOp: UserOperationStruct,
+    context: any
+  ): Promise<UserOperationStruct> {
+    console.log('-------newCredentialInfo, ', context);
+
+    return {
+      ...userOp,
+      signature: context.newCredentialInfo.response.signature,
+    };
   }
 
   signMessage = async (
     context: any,
     request?: MessageSigningRequest
   ): Promise<string> => {
-    return this.ownerOne.signMessage(request?.rawSigningData || '');
+    // return this.ownerOne.signMessage(request?.rawSigningData || '');
+    return '';
   };
-
-  async createUnsignedUserOpWithContext(
-    info: TransactionDetailsForUserOp,
-    context?: any
-  ): Promise<UserOperationStruct> {
-    return this.createUnsignedUserOp(info);
-  }
 
   async createUnsignedUserOpForTransactions(
     transactions: TransactionDetailsForUserOp[]

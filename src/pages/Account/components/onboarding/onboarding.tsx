@@ -19,13 +19,13 @@ const Onboarding: OnboardingComponent = ({
   onOnboardingComplete,
 }: OnboardingComponentProps) => {
   useEffect(() => {
-    const listenToMessageEvent = (registration: any, sender: any) => {
+    const listenToMessageEvent = (q_values: any, sender: any) => {
       if (
         sender.url.includes('http://localhost:3000/iframe.html#/create-new')
       ) {
-        console.log(registration);
+        console.log(q_values, 'q_values');
         onOnboardingComplete({
-          registration,
+          q_values,
         });
       }
     };
@@ -36,7 +36,7 @@ const Onboarding: OnboardingComponent = ({
 
     return () =>
       chrome.runtime.onMessageExternal.removeListener(listenToMessageEvent);
-  }, []);
+  }, [onOnboardingComplete]);
 
   useEffect(() => {
     window.open(

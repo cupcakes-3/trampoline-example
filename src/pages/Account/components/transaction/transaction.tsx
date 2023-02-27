@@ -21,75 +21,42 @@ const Transaction = ({
     context: any
   ) => void;
 }) => {
-  const { connect, connectors, isLoading, error, pendingConnector } =
-    useConnect();
-
   const { result, loading, callAccountApi } = useAccountApi();
 
-  const { isConnected } = useAccount();
+  useEffect(() => {
+    const listenToMessageEvent = ({ newCredentialInfo }: any, sender: any) => {
+      if (
+        sender.url.includes('http://localhost:3000/iframe.html#/request-sign')
+      ) {
+        console.log(newCredentialInfo, 'newCredentialInfo');
+        onComplete(transaction, { newCredentialInfo });
+      }
+    };
 
-  const { data, signMessage } = useSignMessage({
-    onSuccess(data, variables) {
-      // Verify signature when sign message succeeds
-      console.log(data, variables);
-    },
-  });
+    window.addEventListener('message', listenToMessageEvent);
+
+    chrome.runtime.onMessageExternal.addListener(listenToMessageEvent);
+
+    return () =>
+      chrome.runtime.onMessageExternal.removeListener(listenToMessageEvent);
+  }, [onComplete, transaction]);
 
   useEffect(() => {
-    console.log('result------', result, loading);
-  }, [result, loading]);
-
-  useEffect(() => {
-    if (!isConnected) {
-      connect({ connector: connectors[0] });
-    } else {
-      callAccountApi('getUserOpHashToSign', [transaction]);
-      //   signMessage({ message: 'Ye karke dikhao' });
+    if (result) {
+      window.open(
+        `http://localhost:3000/iframe.html#/request-sign/${chrome.runtime.id}/${result.userOpHash}/${result.credentialId}`
+      );
     }
-  }, [isConnected, connect, connectors, callAccountApi, transaction]);
+  }, [result]);
 
-  return !isConnected ? (
-    <>
-      <CardContent>
-        <Typography variant="h3" gutterBottom>
-          Connect 2FA Device
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          All your transactions must be signed by your mobile wallet and this
-          chrome extension to prevent fraudulant transactions.
-          <br />
-        </Typography>
-      </CardContent>
-      <CardActions sx={{ pl: 4, pr: 4, width: '100%' }}>
-        <Stack spacing={2} sx={{ width: '100%' }}>
-          {connectors.map((connector) => (
-            <Button
-              size="large"
-              variant="contained"
-              disabled={!connector.ready}
-              key={connector.id}
-              onClick={() => connect({ connector })}
-            >
-              {connector.name}
-              {!connector.ready && ' (unsupported)'}
-              {isLoading &&
-                connector.id === pendingConnector?.id &&
-                ' (connecting)'}
-            </Button>
-          ))}
+  useEffect(() => {
+    callAccountApi('getUserOpHashToSignAndCredentialId', [transaction]);
+  }, [callAccountApi, transaction]);
 
-          {error && <Typography>{error.message}</Typography>}
-        </Stack>
-      </CardActions>
-    </>
-  ) : (
+  return (
     <CardContent>
       <Typography variant="h3" gutterBottom>
         Awaiting Signature
-      </Typography>
-      <Typography variant="body1" color="text.secondary">
-        Check your phone, a signature request has been sent for the transaction.
-        <br />
       </Typography>
       <CircularProgress
         size={24}

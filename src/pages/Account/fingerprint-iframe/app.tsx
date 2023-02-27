@@ -3,6 +3,10 @@ import React, { useEffect } from 'react';
 import { Route, Routes, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import * as utils from './utils';
+import * as CBOR from './cbor';
+import * as Helper from './helpers';
+import { decode } from './base64url-arraybuffer';
+import { BigNumber } from 'ethers';
 
 function getAlgoName(num: any) {
   switch (num) {
@@ -39,29 +43,27 @@ const CreatePassKey = () => {
 
         if (!credential) return;
 
-        const registration = {
-          username: username,
-          credential: {
-            id: credential.id,
-            publicKey: utils.toBase64url(credential.response.getPublicKey()),
-            algorithm: getAlgoName(credential.response.getPublicKeyAlgorithm()),
-          },
-          authenticatorData: utils.toBase64url(
-            credential.response.getAuthenticatorData()
-          ),
-          clientData: utils.toBase64url(credential.response.clientDataJSON),
-        };
+        let attestationObject = CBOR.decode(
+          (credential as any).response.attestationObject,
+          undefined,
+          undefined
+        );
+        let authData = Helper.parseAuthData(attestationObject.authData);
+        let pubk = CBOR.decode(
+          authData.COSEPublicKey.buffer,
+          undefined,
+          undefined
+        );
 
-        console.log(window.opener.postMessage);
+        const q0 = BigNumber.from(pubk['-2']);
+        const q1 = BigNumber.from(pubk['-3']);
 
-        console.log(chromeid, username);
+        const credentialId = credential.id;
 
-        chrome.runtime.sendMessage(chromeid, registration);
-
-        await window.opener.postMessage(registration);
+        await chrome.runtime.sendMessage(chromeid, { credentialId, q0, q1 });
       } catch (e) {
         console.log(e);
-        await window.opener.postMessage('Denied');
+        await chrome.runtime.sendMessage(chromeid, 'Denied');
       }
       setTimeout(() => {
         window.close();
@@ -70,6 +72,59 @@ const CreatePassKey = () => {
 
     createPassKeySync();
   }, [username, chromeid]);
+
+  return (
+    <CircularProgress
+      size={24}
+      sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        marginTop: '-12px',
+        marginLeft: '-12px',
+      }}
+    />
+  );
+};
+
+const RequestSign = () => {
+  const { chromeid, requestId = '', credentialId = '' } = useParams();
+
+  useEffect(() => {
+    const requestSignSync = async () => {
+      try {
+        const publicKeyCredential = await navigator.credentials.get({
+          publicKey: {
+            challenge: Uint8Array.from(requestId, (c) => c.charCodeAt(0)),
+            timeout: 60000,
+            userVerification: 'required',
+            allowCredentials: [
+              {
+                id: decode(credentialId),
+                type: 'public-key',
+                transports: ['internal'],
+              },
+            ],
+          },
+        });
+
+        const newCredentialInfo =
+          Helper.publicKeyCredentialToJSON(publicKeyCredential);
+
+        console.log(newCredentialInfo, '-------');
+
+        await chrome.runtime.sendMessage(chromeid, { newCredentialInfo });
+      } catch (e) {
+        console.log(e);
+        await chrome.runtime.sendMessage(chromeid, 'Denied');
+      }
+      setTimeout(() => {
+        window.close();
+      }, 100);
+    };
+
+    requestSignSync();
+  }, [chromeid, requestId, credentialId]);
 
   return (
     <CircularProgress
@@ -109,6 +164,10 @@ const App = () => {
   return (
     <Routes>
       <Route path="/create-new/:chromeid/:name" element={<CreatePassKey />} />
+      <Route
+        path="/request-sign/:chromeid/:requestId/:credentialId"
+        element={<RequestSign />}
+      />
     </Routes>
   );
 };
