@@ -167,11 +167,18 @@ class BLSAccountAPI extends AccountApiType {
     userOp: UserOperationStruct,
     context: any
   ): Promise<UserOperationStruct> {
-    console.log('-------signature, ', context);
+    const userOphash = await this.getUserOpHash(userOp);
+
+    console.log(
+      'q_values',
+      JSON.stringify([this.q_values.q0, this.q_values.q1])
+    );
+    console.log('signature', JSON.stringify(context.signature));
+    console.log('userOphash', userOphash);
 
     return {
       ...userOp,
-      signature: hexConcat(context.signature),
+      signature: ethers.utils.hexConcat(context.signature),
     };
   }
 

@@ -6,11 +6,26 @@ import * as utils from './utils';
 import * as CBOR from './cbor';
 import * as Helper from './helpers';
 import { decode } from './base64url-arraybuffer';
-import { BigNumber } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import crypto from 'crypto';
 import { ECDSASigValue } from '@peculiar/asn1-ecc';
 import { AsnParser } from '@peculiar/asn1-schema';
 import base64url from 'base64url';
+import elliptic from 'elliptic';
+import cbor from 'cbor';
+
+enum COSEKEYS {
+  kty = 1,
+  alg = 3,
+  crv = -1,
+  x = -2,
+  y = -3,
+  n = -1,
+  e = -2,
+}
+
+const EC = elliptic.ec;
+const ec = new EC('p256');
 
 function getAlgoName(num: any) {
   switch (num) {
@@ -30,19 +45,27 @@ const CreatePassKey = () => {
   useEffect(() => {
     const createPassKeySync = async () => {
       try {
-        const credential = await navigator.credentials.create({
-          publicKey: {
-            rp: {
-              name: 'Trampoline-Example',
-            },
-            user: {
-              id: Uint8Array.from(Buffer.from(uuidv4, 'hex')),
-              name: username,
-              displayName: username,
-            },
-            challenge: Uint8Array.from(Buffer.from(uuidv4, 'hex')),
-            pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        const publicKeyOptions = {
+          rp: {
+            id: window.location.hostname,
+            name: window.location.hostname,
           },
+          user: {
+            id: await utils.sha256(new TextEncoder().encode(username)),
+            name: username,
+            displayName: username,
+          },
+          challenge: utils.parseBase64url(uuidv4()),
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+          attestation: 'direct',
+          authenticatorSelection: {
+            userVerification: 'required', // Webauthn default is "preferred"
+            authenticatorAttachment: 'platform',
+          },
+        };
+
+        const credential = await navigator.credentials.create({
+          publicKey: publicKeyOptions,
         });
 
         if (!credential) return;
@@ -53,24 +76,93 @@ const CreatePassKey = () => {
           undefined
         );
         let authData = Helper.parseAuthData(attestationObject.authData);
+
         let pubk = CBOR.decode(
           authData.COSEPublicKey.buffer,
           undefined,
           undefined
         );
 
-        const q0 = BigNumber.from(pubk['-2']);
-        const q1 = BigNumber.from(pubk['-3']);
+        const pk = ec.keyFromPublic({ x: pubk['-2'], y: pubk['-3'] });
+
+        const publicKey = [
+          '0x' + pk.getPublic('hex').slice(2, 66),
+          '0x' + pk.getPublic('hex').slice(-64),
+        ];
 
         const credentialId = credential.id;
 
-        await chrome.runtime.sendMessage(chromeid, { credentialId, q0, q1 });
+        console.log(credential, 'credential---');
+
+        // --------- EXPERIMENT VALIDATION --------
+
+        console.log(pk.validate(), '-----validate public key');
+
+        const requestId =
+          '0x7ef9b793d0b435d7187c7294f15a9d31eedee40ebc0c55b3a8c62190d1205b6b';
+
+        const publicKeyCredential = await navigator.credentials.get({
+          publicKey: {
+            rpId: window.location.hostname,
+            challenge: utils.toBuffer(requestId),
+            timeout: 60000,
+            userVerification: 'required',
+            allowCredentials: [
+              {
+                id: decode(credentialId),
+                type: 'public-key',
+                // transports: ['internal'],
+              },
+            ],
+          },
+        });
+
+        if (!publicKeyCredential)
+          throw new Error('publicKeyCredential is null');
+
+        console.log(publicKeyCredential);
+
+        const newCredentialInfo =
+          Helper.publicKeyCredentialToJSON(publicKeyCredential);
+
+        console.log(newCredentialInfo, '-------');
+
+        const parsedSignature = AsnParser.parse(
+          base64url.toBuffer(newCredentialInfo.response.signature),
+          ECDSASigValue
+        );
+
+        let rBytes = new Uint8Array(parsedSignature.r);
+        let sBytes = new Uint8Array(parsedSignature.s);
+
+        // if (shouldRemoveLeadingZero(rBytes)) {
+        //   rBytes = rBytes.slice(1);
+        // }
+
+        // if (shouldRemoveLeadingZero(sBytes)) {
+        //   sBytes = sBytes.slice(1);
+        // }
+
+        const signature = [
+          '0x' + Buffer.from(rBytes).toString('hex'),
+          '0x' + Buffer.from(sBytes).toString('hex'),
+        ];
+
+        console.log(' ----- verification first -----');
+        console.log(pk.verify(requestId, { r: rBytes, s: sBytes }));
+        // --------- EXPERIMENT VALIDATION --------
+
+        await chrome.runtime.sendMessage(chromeid, {
+          credentialId,
+          q0: publicKey[0],
+          q1: publicKey[1],
+        });
       } catch (e) {
         console.log(e);
         await chrome.runtime.sendMessage(chromeid, 'Denied');
       }
       setTimeout(() => {
-        window.close();
+        // window.close();
       }, 100);
     };
 
@@ -106,12 +198,13 @@ const RequestSign = () => {
     const requestSignSync = async () => {
       console.log(
         requestId,
-        Uint8Array.from(requestId, (c) => c.charCodeAt(0))
+        Uint8Array.from(requestId, (c) => c.charCodeAt(0)).buffer
       );
       try {
         const publicKeyCredential = await navigator.credentials.get({
           publicKey: {
-            challenge: Uint8Array.from(requestId, (c) => c.charCodeAt(0)),
+            rpId: window.location.hostname,
+            challenge: utils.toBuffer(requestId),
             timeout: 60000,
             userVerification: 'required',
             allowCredentials: [
@@ -163,7 +256,7 @@ const RequestSign = () => {
         await chrome.runtime.sendMessage(chromeid, 'Denied');
       }
       setTimeout(() => {
-        window.close();
+        // window.close();
       }, 100);
     };
 

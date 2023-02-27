@@ -2469,6 +2469,11 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.8.1.tgz#709cfc4bbb3ca9f4460d60101f15dac6b7a2d5e4"
   integrity sha512-xQ6eUZl+RDyb/FiZe1h+U7qr/f4p/SrTSQcTPH2bjur3C5DbuW/zFgCU/b1P/xcIaEqJep+9ju4xDRi3rmChdQ==
 
+"@passwordless-id/webauthn@^1.2.0":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@passwordless-id/webauthn/-/webauthn-1.2.0.tgz#5f0f921eb370b21058b6074929fcc540f5b452af"
+  integrity sha512-2MQjaiGqRzUKlLBrq1JK5u2NZMJqDjbzAfKnCIUEF8HaVHF9uL88DQGzrEE0A+4oUV8uyK9xgVHyhnqGSVIhfQ==
+
 "@peculiar/asn1-ecc@^2.3.4":
   version "2.3.4"
   resolved "https://registry.yarnpkg.com/@peculiar/asn1-ecc/-/asn1-ecc-2.3.4.tgz#f120091bde2ecd1e4f4691b46a2d18a74effce20"
