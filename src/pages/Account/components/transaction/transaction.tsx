@@ -256,12 +256,12 @@ const Transaction = ({
   );
 
   useEffect(() => {
-    const listenToMessageEvent = ({ newCredentialInfo }: any, sender: any) => {
+    const listenToMessageEvent = ({ signature }: any, sender: any) => {
       if (
         sender.url.includes('http://localhost:3000/iframe.html#/request-sign')
       ) {
-        console.log(newCredentialInfo, 'newCredentialInfo');
-        onComplete(transaction, { newCredentialInfo });
+        console.log(signature, 'signature');
+        onComplete(transaction, { signature });
       }
     };
 

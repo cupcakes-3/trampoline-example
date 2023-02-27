@@ -172,6 +172,7 @@ export const sendTransaction = createBackgroundAsyncThunk(
         unsignedUserOp,
         context
       );
+      console.log(signedUserOp, '-------');
       const txnHash = keyringService.sendUserOp(address, signedUserOp);
 
       const providerBridgeService = mainServiceManager.getService(

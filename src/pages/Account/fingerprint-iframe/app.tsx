@@ -7,6 +7,10 @@ import * as CBOR from './cbor';
 import * as Helper from './helpers';
 import { decode } from './base64url-arraybuffer';
 import { BigNumber } from 'ethers';
+import crypto from 'crypto';
+import { ECDSASigValue } from '@peculiar/asn1-ecc';
+import { AsnParser } from '@peculiar/asn1-schema';
+import base64url from 'base64url';
 
 function getAlgoName(num: any) {
   switch (num) {
@@ -87,11 +91,23 @@ const CreatePassKey = () => {
   );
 };
 
+function toHash(data: crypto.BinaryLike, algo = 'SHA256') {
+  return crypto.createHash(algo).update(data).digest();
+}
+
+function shouldRemoveLeadingZero(bytes: Uint8Array): boolean {
+  return bytes[0] === 0x0 && (bytes[1] & (1 << 7)) !== 0;
+}
+
 const RequestSign = () => {
   const { chromeid, requestId = '', credentialId = '' } = useParams();
 
   useEffect(() => {
     const requestSignSync = async () => {
+      console.log(
+        requestId,
+        Uint8Array.from(requestId, (c) => c.charCodeAt(0))
+      );
       try {
         const publicKeyCredential = await navigator.credentials.get({
           publicKey: {
@@ -102,18 +118,46 @@ const RequestSign = () => {
               {
                 id: decode(credentialId),
                 type: 'public-key',
-                transports: ['internal'],
+                // transports: ['internal'],
               },
             ],
           },
         });
+
+        if (!publicKeyCredential)
+          throw new Error('publicKeyCredential is null');
+
+        console.log(publicKeyCredential);
 
         const newCredentialInfo =
           Helper.publicKeyCredentialToJSON(publicKeyCredential);
 
         console.log(newCredentialInfo, '-------');
 
-        await chrome.runtime.sendMessage(chromeid, { newCredentialInfo });
+        const parsedSignature = AsnParser.parse(
+          base64url.toBuffer(newCredentialInfo.response.signature),
+          ECDSASigValue
+        );
+
+        let rBytes = new Uint8Array(parsedSignature.r);
+        let sBytes = new Uint8Array(parsedSignature.s);
+
+        if (shouldRemoveLeadingZero(rBytes)) {
+          rBytes = rBytes.slice(1);
+        }
+
+        if (shouldRemoveLeadingZero(sBytes)) {
+          sBytes = sBytes.slice(1);
+        }
+
+        const signature = [
+          '0x' + Buffer.from(rBytes).toString('hex'),
+          '0x' + Buffer.from(sBytes).toString('hex'),
+        ];
+
+        console.log(signature);
+
+        await chrome.runtime.sendMessage(chromeid, { signature });
       } catch (e) {
         console.log(e);
         await chrome.runtime.sendMessage(chromeid, 'Denied');

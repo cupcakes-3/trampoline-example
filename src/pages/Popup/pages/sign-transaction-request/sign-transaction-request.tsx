@@ -235,24 +235,27 @@ const SignTransactionRequest = () => {
     })
   );
 
-  const onSend = useCallback(async () => {
-    if (activeAccount)
-      await backgroundDispatch(
-        sendTransaction({ address: activeAccount, context })
-      );
-    const timer = setTimeout(() => {
-      window.close();
-    }, 1000);
-    return clearTimeout(timer);
-  }, [activeAccount, backgroundDispatch, context]);
+  const onSend = useCallback(
+    async (context: any) => {
+      if (activeAccount)
+        await backgroundDispatch(
+          sendTransaction({ address: activeAccount, context })
+        );
+      const timer = setTimeout(() => {
+        window.close();
+      }, 1000);
+      return clearTimeout(timer);
+    },
+    [activeAccount, backgroundDispatch]
+  );
 
   const onComplete = useCallback(
     async (modifiedTransaction: EthersTransactionRequest, context?: any) => {
       if (activeAccount) {
-        backgroundDispatch(createUnsignedUserOp(activeAccount));
+        // backgroundDispatch(createUnsignedUserOp(activeAccount));
         setContext(context);
         if (Config.showTransactionConfirmationScreen === false) {
-          onSend();
+          onSend(context);
         }
         setStage('sign-transaction-confirmation');
       }

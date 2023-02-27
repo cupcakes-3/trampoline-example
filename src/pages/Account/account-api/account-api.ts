@@ -167,11 +167,11 @@ class BLSAccountAPI extends AccountApiType {
     userOp: UserOperationStruct,
     context: any
   ): Promise<UserOperationStruct> {
-    console.log('-------newCredentialInfo, ', context);
+    console.log('-------signature, ', context);
 
     return {
       ...userOp,
-      signature: context.newCredentialInfo.response.signature,
+      signature: hexConcat(context.signature),
     };
   }
 
